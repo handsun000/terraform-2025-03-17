@@ -207,15 +207,23 @@ docker run -d \
   -v /dockerProjects/mysql_1/volumes/var/lib/mysql:/var/lib/mysql \
   -v /dockerProjects/mysql_1/volumes/etc/mysql/conf.d:/etc/mysql/conf.d \
   --network common \
-  -p 3306:3306
-  -e MYSQL_ROOT_PASSWORD=son1234 \
+  -p 3306:3306 \
+  -e MYSQL_ROOT_PASSWORD=${var.password_1} \
   -e TZ=Asia/Seoul \
   mysql:latest
 
-docker exec mysql_1 mysql -uroot -pson1234 -e"
+# MySQL 컨테이너가 준비될 때까지 대기
+echo "MySQL이 기동될 때까지 대기 중..."
+until docker exec mysql_1 mysql -uroot -p${var.password_1} -e "SELECT 1" &> /dev/null; do
+  echo "MySQL이 아직 준비되지 않음. 5초 후 재시도..."
+  sleep 5
+done
+echo "MySQL이 준비됨. 초기화 스크립트 실행 중..."
+
+docker exec mysql_1 mysql -uroot -p${var.password_1} -e "
 CREATE USER 'sonlocal'@'127.0.0.1' IDENTIFIED WITH caching_sha2_password BY '1234';
 CREATE USER 'sonlocal'@'172.18.%.%' IDENTIFIED WITH caching_sha2_password BY '1234';
-CREATE USER 'son'@'%' IDENTIFIED WITH caching_sha2_password BY 'son1234';
+CREATE USER 'son'@'%' IDENTIFIED WITH caching_sha2_password BY '${var.password_1}';
 
 GRANT ALL PRIVILEGES ON *.* TO 'sonlocal'@'127.0.0.1';
 GRANT ALL PRIVILEGES ON *.* TO 'sonlocal'@'172.18.%.%';
@@ -224,6 +232,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'son'@'%';
 CREATE DATABASE glog_prod;
 
 FLUSH PRIVILEGES;
+"
 
 END_OF_FILE
 }
